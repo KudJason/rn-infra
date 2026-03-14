@@ -39,6 +39,37 @@ systemctl enable --now docker
 curl -sS https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-ssh-init.sh | bash || true
 export PATH=$PATH:/usr/local/bin
 
+# Install Cloudflare Tunnel client (cloudflared) for rn-core-vm
+if ! command -v cloudflared >/dev/null 2>&1; then
+  echo "安装 cloudflared..."
+  ARCH="$(dpkg --print-architecture)"
+  case "$${ARCH}" in
+    amd64) CF_ARCH="amd64" ;;
+    arm64) CF_ARCH="arm64" ;;
+    *)
+      echo "不支持的 cloudflared 架构: $${ARCH}，跳过安装"
+      CF_ARCH=""
+      ;;
+  esac
+
+  if [ -n "$${CF_ARCH}" ]; then
+    CF_DEB="/tmp/cloudflared-$${CF_ARCH}.deb"
+    if curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-$${CF_ARCH}.deb" -o "$${CF_DEB}"; then
+      if dpkg -i "$${CF_DEB}"; then
+        echo "cloudflared 安装完成"
+      else
+        echo "dpkg 安装 cloudflared 失败，尝试修复依赖后重试"
+        apt-get install -f -y && dpkg -i "$${CF_DEB}" || echo "cloudflared 安装失败，后续可手动安装"
+      fi
+      rm -f "$${CF_DEB}"
+    else
+      echo "cloudflared 下载失败，后续可手动安装"
+    fi
+  fi
+else
+  echo "cloudflared 已安装，跳过"
+fi
+
 # 挂载数据盘到 /data
 mkfs.ext4 -F /dev/disk/by-id/google-rn-core-data-disk || true
 mkdir -p /data
@@ -161,6 +192,7 @@ fi
 echo "=== RuralNeighbour VM Ready ===" | tee /etc/motd
 echo "数据目录: /data" | tee -a /etc/motd
 echo "查看部署: sudo k3s kubectl get pods -n ruralneighbour-dev" | tee -a /etc/motd
+echo "Cloudflare Tunnel 客户端版本: $(cloudflared --version 2>/dev/null | head -n 1 || echo 'not-installed')" | tee -a /etc/motd
 
 # 简单备份脚本
 cat >/usr/local/bin/rn_nightly_backup.sh <<'SHELL'
