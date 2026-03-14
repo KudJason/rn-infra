@@ -4,7 +4,7 @@ set -euo pipefail
 echo "=== 配置 GitHub Actions Workload Identity ==="
 echo ""
 
-PROJECT_ID="rural-neighbor-477211"
+PROJECT_ID="rural-neighbor-1"
 POOL_NAME="github-actions-pool"
 PROVIDER_NAME="github-provider"
 SA_NAME="github-actions-sa"
@@ -130,13 +130,13 @@ echo -e "${GREEN}✓ 已绑定 Workload Identity${NC}"
 echo ""
 echo "7️⃣  创建 Artifact Registry 仓库（若不存在）..."
 if gcloud artifacts repositories describe rn-backend \
-  --location=us-east4 \
+  --location=us-central1 \
   --project="$PROJECT_ID" >/dev/null 2>&1; then
   echo "   仓库 rn-backend 已存在，跳过"
 else
   gcloud artifacts repositories create rn-backend \
     --repository-format=docker \
-    --location=us-east4 \
+    --location=us-central1 \
     --description="RuralNeighbour Backend Services" \
     --project="$PROJECT_ID"
   echo -e "${GREEN}✓ 已创建 Artifact Registry 仓库${NC}"

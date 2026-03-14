@@ -22,6 +22,12 @@ resource "google_compute_instance_template" "spot_tmpl" {
 #!/bin/bash
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
+exec > >(tee -a /var/log/rn-worker-startup.log) 2>&1
+
+PROJECT_ID="${var.project_id}"
+ZONE="${var.zone}"
+
+echo "[worker-init] starting on $(hostname) at $(date -Is)"
 apt-get update -y
 apt-get install -y ca-certificates curl gnupg apt-transport-https software-properties-common
 
@@ -38,46 +44,68 @@ systemctl enable --now docker
 
 # Install gcloud (if not present)
 if ! command -v gcloud >/dev/null 2>&1; then
-    # Attempt to install via apt if possible, or use the script
     apt-get install -y google-cloud-cli || true
 fi
 
 # Fetch K3s Token
 # Retry loop for secret fetching
-MAX_RETRIES=20
+MAX_RETRIES=90
+K3S_TOKEN=""
 for i in $(seq 1 $MAX_RETRIES); do
-    K3S_TOKEN=$(gcloud secrets versions access latest --secret=K3S_CLUSTER_TOKEN --project=rural-neighbor-477211 2>/dev/null) && break
-    echo "Waiting for secret access... ($i/$MAX_RETRIES)"
+    if command -v gcloud >/dev/null 2>&1; then
+      K3S_TOKEN=$(gcloud secrets versions access latest --secret=K3S_CLUSTER_TOKEN --project="$PROJECT_ID" 2>/dev/null || true)
+    fi
+    if [ -n "$K3S_TOKEN" ]; then
+      break
+    fi
+    echo "[worker-init] waiting for K3S_CLUSTER_TOKEN... ($i/$MAX_RETRIES)"
     sleep 10
 done
 
 if [ -z "$K3S_TOKEN" ]; then
-    echo "Failed to fetch K3S_TOKEN"
+    echo "[worker-init] failed to fetch K3S_CLUSTER_TOKEN from Secret Manager"
     exit 1
 fi
 
-MASTER_IP="10.150.0.41"
+MASTER_IP="${google_compute_instance.core.network_interface.0.network_ip}"
+if [ -z "$MASTER_IP" ]; then
+  echo "[worker-init] MASTER_IP is empty"
+  exit 1
+fi
 
-# Install K3s Agent
-curl -sfL https://get.k3s.io | K3S_URL=https://$${MASTER_IP}:6443 K3S_TOKEN=$${K3S_TOKEN} sh -
+echo "[worker-init] waiting for k3s API at $MASTER_IP:6443"
+for i in $(seq 1 60); do
+  if timeout 5 bash -lc "echo >/dev/tcp/$MASTER_IP/6443" 2>/dev/null; then
+    echo "[worker-init] k3s API port is reachable"
+    break
+  fi
+  if [ "$i" -eq 60 ]; then
+    echo "[worker-init] k3s API is not reachable after 10 minutes"
+    exit 1
+  fi
+  sleep 10
+done
 
-echo "Spot worker ready and joined cluster"
+# Install K3s Agent explicitly in agent mode
+curl -sfL https://get.k3s.io | K3S_URL=https://$${MASTER_IP}:6443 K3S_TOKEN=$${K3S_TOKEN} sh -s - agent --node-name "$(hostname)"
+
+echo "[worker-init] worker ready and join command executed"
 EOT
     enable-oslogin         = var.enable_oslogin ? "TRUE" : "FALSE"
     block-project-ssh-keys = "TRUE"
   }
 
   service_account {
-    email  = google_service_account.vm_sa.email
+    email = google_service_account.vm_sa.email
     scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
   }
 
   scheduling {
-    provisioning_model         = "STANDARD"
-    automatic_restart          = true
-    on_host_maintenance        = "MIGRATE"
+    provisioning_model  = "STANDARD"
+    automatic_restart   = true
+    on_host_maintenance = "MIGRATE"
   }
 
   shielded_instance_config {
@@ -100,6 +128,10 @@ resource "google_compute_instance_group_manager" "spot_mig" {
   version {
     instance_template = google_compute_instance_template.spot_tmpl.self_link
   }
+
+  depends_on = [
+    google_compute_instance.core
+  ]
 }
 
 

@@ -80,7 +80,7 @@ cd /path/to/ruralneighbour
 验证 Nginx：
 ```bash
 # 通过 SSH 测试
-gcloud compute ssh rn-core-vm --zone=us-east4-a --command="curl -s http://localhost/health"
+gcloud compute ssh rn-core-vm --zone=us-central1-a --command="curl -s http://localhost/health"
 ```
 
 ### 步骤 2: 初始化 Terraform

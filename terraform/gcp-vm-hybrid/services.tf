@@ -5,6 +5,7 @@ resource "google_project_service" "enabled" {
     "logging.googleapis.com",
     "monitoring.googleapis.com",
     "storage.googleapis.com",
+    "secretmanager.googleapis.com",
   ])
   project = var.project_id
   service = each.value

@@ -1,19 +1,19 @@
 variable "project_id" {
   description = "GCP Project ID"
   type        = string
-  default     = "rural-neighbor-477211"
+  default     = "rural-neighbor-1"
 }
 
 variable "region" {
   description = "GCP region"
   type        = string
-  default     = "us-east4"
+  default     = "us-central1"
 }
 
 variable "zone" {
   description = "GCP zone"
   type        = string
-  default     = "us-east4-a"
+  default     = "us-central1-a"
 }
 
 variable "instance_name" {

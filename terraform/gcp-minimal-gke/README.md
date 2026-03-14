@@ -8,7 +8,7 @@
 
 先决条件：
 - 已完成 `gcloud auth login --update-adc` 且 `gcloud config set project` 指向目标项目
-- 已创建 GCS 远端状态桶（仓库脚本已创建 `gs://tf-state-rural-neighbor-477211`）
+- 已创建 GCS 远端状态桶（仓库脚本已创建 `gs://tf-state-rural-neighbor-1`）
 
 使用：
 ```bash
@@ -20,7 +20,7 @@ terraform apply
 应用后：
 ```bash
 # 获取集群凭据
-gcloud container clusters get-credentials rn-autopilot-minimal --region us-east4
+gcloud container clusters get-credentials rn-autopilot-minimal --region us-central1
 
 # 之后使用现有 k8s 清单部署（示例）
 kubectl apply -k /Users/jasonjia/Documents/codebase/ruralneighbour/ms-backend/k8s/overlays/staging
@@ -28,6 +28,6 @@ kubectl apply -k /Users/jasonjia/Documents/codebase/ruralneighbour/ms-backend/k8
 
 说明：
 - 此模板不创建数据库或 Redis（保留由现有 k8s StatefulSet/Deployment 管理，最小化依赖）。如需托管版，可扩展：Cloud SQL（PostgreSQL+PostGIS）与 Memorystore Redis。
-- 建议将镜像推送到 Artifact Registry：`us-east4-docker.pkg.dev/<PROJECT_ID>/rn-backend/<image>:<tag>`。
+- 建议将镜像推送到 Artifact Registry：`us-central1-docker.pkg.dev/<PROJECT_ID>/rn-backend/<image>:<tag>`。
 
 

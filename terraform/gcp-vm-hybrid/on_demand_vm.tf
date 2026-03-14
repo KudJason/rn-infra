@@ -53,7 +53,17 @@ if [ ! -f /usr/local/bin/k3s ]; then
   curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='server --disable traefik --disable-cloud-controller' sh -
   sleep 10
   K3S_TOKEN=$(cat /var/lib/rancher/k3s/server/node-token)
-  gcloud secrets versions add K3S_CLUSTER_TOKEN --data-file=<(echo -n "$K3S_TOKEN") --project=${var.project_id} || true
+  TOKEN_FILE=/tmp/k3s_cluster_token.txt
+  printf "%s" "$K3S_TOKEN" > "$TOKEN_FILE"
+  for i in $(seq 1 30); do
+    if gcloud secrets versions add K3S_CLUSTER_TOKEN --data-file="$TOKEN_FILE" --project=${var.project_id}; then
+      echo "K3S token 已发布到 Secret Manager"
+      break
+    fi
+    echo "等待 Secret Manager 可用或权限生效... ($i/30)"
+    sleep 10
+  done
+  rm -f "$TOKEN_FILE"
 fi
 
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
@@ -65,8 +75,8 @@ fi
 
 # === 0. 等待 Worker 节点加入 (构建 K8s Pool) ===
 echo "等待 Worker 节点加入..."
-# 目标：1 Master + 2 Workers = 3 Nodes
-TARGET_NODE_COUNT=3
+# 目标：1 Master + 1 Worker = 2 Nodes (MIG 配置为 1 个 worker)
+TARGET_NODE_COUNT=2
 MAX_WAIT_SECONDS=600
 START_TIME=$(date +%s)
 
@@ -206,15 +216,15 @@ resource "google_compute_instance" "core" {
   }
 
   metadata = {
-    startup-script             = local.core_startup
-    enable-oslogin             = var.enable_oslogin ? "TRUE" : "FALSE"
-    block-project-ssh-keys     = "TRUE"
-    "user-data"               = "rn"
-    BACKUP_BUCKET              = var.backup_bucket_name
+    startup-script         = local.core_startup
+    enable-oslogin         = var.enable_oslogin ? "TRUE" : "FALSE"
+    block-project-ssh-keys = "TRUE"
+    "user-data"            = "rn"
+    BACKUP_BUCKET          = var.backup_bucket_name
   }
 
   service_account {
-    email  = google_service_account.vm_sa.email
+    email = google_service_account.vm_sa.email
     scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]

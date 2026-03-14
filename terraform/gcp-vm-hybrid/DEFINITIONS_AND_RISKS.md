@@ -8,7 +8,7 @@
 ## 文件与资源定义
 
 - `providers.tf`
-  - 配置 Google 提供商与远端状态（GCS `tf-state-rural-neighbor-477211/terraform/vm-hybrid`）。
+  - 配置 Google 提供商与远端状态（GCS `tf-state-rural-neighbor-1/terraform/vm-hybrid`）。
   - 风险：无。
 
 - `variables.tf`

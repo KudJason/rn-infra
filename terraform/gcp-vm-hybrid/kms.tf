@@ -10,12 +10,9 @@ resource "google_kms_crypto_key" "app" {
   purpose         = "ENCRYPT_DECRYPT"
 }
 
-# 允许 VM SA 使用此密钥加解密（用于 Secret Manager 的客户管理密钥）
-resource "google_kms_crypto_key_iam_member" "app_sa_use" {
-  crypto_key_id = google_kms_crypto_key.app.id
-  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-  member        = "serviceAccount:${google_service_account.vm_sa.email}"
-}
+# IAM bindings removed - will be managed manually or via gcloud if needed
+# To grant KMS key access manually, use:
+#   gcloud kms keys add-iam-policy-binding app-config --keyring=rn-keyring --location=REGION --member="serviceAccount:rn-vm-sa@PROJECT_ID.iam.gserviceaccount.com" --role="roles/cloudkms.cryptoKeyEncrypterDecrypter"
 
 
 

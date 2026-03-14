@@ -9,7 +9,8 @@ terraform {
   }
 
   backend "gcs" {
-    bucket = "tf-state-rural-neighbor-477211"
+    # NOTE: keep this in sync with PROJECT_ID when using setup-gcloud-for-terraform.sh
+    bucket = "tf-state-rural-neighbor-1"
     prefix = "terraform/vm-hybrid"
   }
 }

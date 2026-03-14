@@ -1,6 +1,6 @@
 resource "google_compute_firewall" "allow_on_demand_ssh" {
-  name    = "rn-allow-ssh-core"
-  network = "default"
+  name     = "rn-allow-ssh-core"
+  network  = "default"
   priority = 900
 
   allow {
@@ -35,8 +35,8 @@ resource "google_compute_firewall" "deny_all_mig_inbound" {
 }
 
 resource "google_compute_firewall" "allow_cluster_internal" {
-  name    = "rn-allow-cluster-internal"
-  network = "default"
+  name     = "rn-allow-cluster-internal"
+  network  = "default"
   priority = 900
 
   allow {

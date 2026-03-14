@@ -9,7 +9,7 @@ terraform {
   }
 
   backend "gcs" {
-    bucket = "tf-state-rural-neighbor-477211"
+    bucket = "tf-state-rural-neighbor-1"
     prefix = "terraform/vm-compose"
   }
 }

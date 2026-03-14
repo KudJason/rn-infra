@@ -16,14 +16,14 @@
 
 ### GCP 栈：`infra/terraform/gcp-vm-hybrid`
 - ✅ API 启用（compute, iam, logging, monitoring, storage, kms, secretmanager）
-- ✅ IAM：VM 专用 Service Account + 日志/监控/备份桶权限
-- ✅ 备份桶：`rn-backup-rural-neighbor-477211`（版本化，30 天生命周期）
+- ✅ IAM：VM 专用 Service Account + 备份桶权限；可选 project 级 IAM（通过 `manage_project_iam` 控制）
+- ✅ 备份桶：`rn-backup-rural-neighbor-1`（版本化，30 天生命周期）
 - ✅ 防火墙：
   - 核心 VM 仅开放 SSH(22) 给 `0.0.0.0/0`（建议后续收紧）
   - 核心 VM 80/443 仅开放给 Cloudflare IPv4 段
   - MIG 全拒入站流量
 - ✅ 数据盘：50GB pd-standard + 每日快照（保留 7 天）
-- ✅ 核心 VM：`rn-core-vm`（e2-medium，us-east4-a）
+- ✅ 核心 VM：`rn-core-vm`（e2-medium，us-central1-a）
   - 公网 IP: `34.48.255.154`
   - 启动脚本：安装 Docker/gcloud，挂载 /data，配置 nightly 备份脚本
 - ✅ Spot MIG：`rn-spot-mig`（目标 2 台 e2-medium）
@@ -63,7 +63,7 @@ terraform apply -auto-approve
 
 ### 2. GCP Secret 值填充（一次性）
 ```bash
-export PROJECT_ID=rural-neighbor-477211
+export PROJECT_ID=rural-neighbor-1
 
 # 示例：设置数据库密码（自定义强密码）
 echo -n "your_strong_db_password" | gcloud secrets versions add db-password --data-file=- --project $PROJECT_ID
@@ -109,13 +109,13 @@ YAML
 ### 4. 验证基础设施就绪
 ```bash
 # 检查 VM
-gcloud compute instances list --project rural-neighbor-477211
+gcloud compute instances list --project rural-neighbor-1
 
 # 检查 MIG
-gcloud compute instance-groups managed list --project rural-neighbor-477211
+gcloud compute instance-groups managed list --project rural-neighbor-1
 
 # 检查备份桶
-gsutil ls -p rural-neighbor-477211 | grep backup
+gsutil ls -p rural-neighbor-1 | grep backup
 
 # 检查 DNS（需等 Cloudflare 生效，1–5 分钟）
 dig api.ruralneighbor.com +short

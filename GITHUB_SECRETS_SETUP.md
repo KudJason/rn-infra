@@ -2,7 +2,7 @@
 
 **Date:** November 4, 2025  
 **Repository:** KudJason/ruralneighbour-k8s  
-**GCP Project:** rural-neighbor-477211
+**GCP Project:** rural-neighbor-1
 
 ---
 
@@ -12,7 +12,7 @@ All GCP resources have been successfully created:
 - ✅ Workload Identity Pool: `github-actions-pool`
 - ✅ OIDC Provider: `github-provider`
 - ✅ Service Account: `github-actions-sa`
-- ✅ Artifact Registry Repository: `rn-backend` (us-east4)
+- ✅ Artifact Registry Repository: `rn-backend` (us-central1)
 - ✅ IAM Permissions: `roles/artifactregistry.writer`
 
 ---
@@ -42,7 +42,7 @@ projects/763414052591/locations/global/workloadIdentityPools/github-actions-pool
 
 **Value:**
 ```
-github-actions-sa@rural-neighbor-477211.iam.gserviceaccount.com
+github-actions-sa@rural-neighbor-1.iam.gserviceaccount.com
 ```
 
 **Purpose:** The service account email that GitHub Actions will impersonate
@@ -169,7 +169,7 @@ git push origin develop
 Once all secrets are configured, your GitHub Actions workflow can:
 
 1. ✅ Authenticate to GCP without storing JSON keys
-2. ✅ Push Docker images to Artifact Registry (`us-east4-docker.pkg.dev/rural-neighbor-477211/rn-backend`)
+2. ✅ Push Docker images to Artifact Registry (`us-central1-docker.pkg.dev/rural-neighbor-1/rn-backend`)
 3. ✅ SSH into your core VM (34.48.255.154)
 4. ✅ Deploy services to MicroK8s cluster
 5. ✅ Run post-deployment tests
@@ -228,8 +228,8 @@ whoami
 ### GCP Resources Created
 - **Workload Identity Pool:** `github-actions-pool`
 - **Provider:** `github-provider`  
-- **Service Account:** `github-actions-sa@rural-neighbor-477211.iam.gserviceaccount.com`
-- **Artifact Registry:** `us-east4-docker.pkg.dev/rural-neighbor-477211/rn-backend`
+- **Service Account:** `github-actions-sa@rural-neighbor-1.iam.gserviceaccount.com`
+- **Artifact Registry:** `us-central1-docker.pkg.dev/rural-neighbor-1/rn-backend`
 
 ### GitHub Actions Workflow
 - File: `ms-backend/.github/workflows/deploy-backend.yml`

@@ -4,8 +4,8 @@ set -euo pipefail
 echo "=== 自动填充 GCP Secret Manager 密钥 ==="
 echo ""
 
-PROJECT_ID="rural-neighbor-477211"
-REGION="us-east4"
+PROJECT_ID="rural-neighbor-1"
+REGION="us-central1"
 KMS_KEY="projects/${PROJECT_ID}/locations/${REGION}/keyRings/rn-keyring/cryptoKeys/app-config"
 
 # 颜色输出

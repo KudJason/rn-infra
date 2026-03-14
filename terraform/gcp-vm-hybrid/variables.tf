@@ -1,19 +1,19 @@
 variable "project_id" {
   description = "GCP Project ID"
   type        = string
-  default     = "rural-neighbor-477211"
+  default     = "rural-neighbor-1"
 }
 
 variable "region" {
   description = "GCP region"
   type        = string
-  default     = "us-east4"
+  default     = "us-central1"
 }
 
 variable "zone" {
   description = "GCP zone"
   type        = string
-  default     = "us-east4-a"
+  default     = "us-central1-a"
 }
 
 variable "on_demand_name" {
@@ -31,7 +31,7 @@ variable "machine_type" {
 variable "boot_disk_size_gb" {
   description = "Boot disk size in GB"
   type        = number
-  default     = 50
+  default     = 100
 }
 
 variable "data_disk_size_gb" {
@@ -43,7 +43,7 @@ variable "data_disk_size_gb" {
 variable "mig_size" {
   description = "Target size of Spot MIG"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "admin_ip_ranges" {
@@ -55,7 +55,7 @@ variable "admin_ip_ranges" {
 variable "cloudflare_ipv4_ranges" {
   description = "Cloudflare IPv4 ranges for proxy-to-origin access"
   type        = list(string)
-  default     = [
+  default = [
     "173.245.48.0/20",
     "103.21.244.0/22",
     "103.22.200.0/22",
@@ -77,7 +77,13 @@ variable "cloudflare_ipv4_ranges" {
 variable "backup_bucket_name" {
   description = "GCS bucket for nightly backups"
   type        = string
-  default     = "rn-backup-rural-neighbor-477211"
+  default     = "rn-backup-rural-neighbor-1"
+}
+
+variable "manage_project_iam" {
+  description = "Whether to manage project-level IAM/KMS/CMEK (requires project-owner-like privileges). Set false for personal/dev projects."
+  type        = bool
+  default     = false
 }
 
 variable "enable_oslogin" {
