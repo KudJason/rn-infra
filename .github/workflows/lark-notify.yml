@@ -27,8 +27,8 @@ jobs:
           if [ "${{ github.event_name }}" = "push" ]; then
             COMMITS_JSON='${{ toJson(github.event.commits) }}'
             COMMITS_COUNT=$(echo "$COMMITS_JSON" | jq '. | length')
-            FIRST_MSG=$(echo "$COMMITS_JSON" | jq -r '.[0].message' | tr '\n' ' ' | sed 's/"/\\"/g' | xargs)
-            TEXT="[$REPO_NAME] push to ${{ github.ref_name }} by ${{ github.actor }} ($COMMITS_COUNT commits): $FIRST_MSG"
+            FIRST_MSG=$(echo "$COMMITS_JSON" | jq -r '.[0].message' | sed 's/\\n/ /g' | sed 's/"/'"'"'/g' | tr -s ' ' | cut -c1-80)
+            TEXT="[$REPO_NAME] push to ${{ github.ref_name }} by ${{ github.actor }}: $FIRST_MSG"
           else
             PR_NUM='${{ github.event.pull_request.number }}'
             PR_URL="https://github.com/${{ github.repository }}/pull/$PR_NUM"
