@@ -18,10 +18,10 @@ jobs:
           if [ "${{ github.event_name }}" = "push" ]; then
             COMMITS_JSON='${{ toJson(github.event.commits) }}'
             COMMITS_COUNT=$(echo "$COMMITS_JSON" | jq '. | length')
-            COMMITS_MSG=$(echo "$COMMITS_JSON" | jq -r '.[] | .message' | head -10 | while IFS= read -r line; do echo "- $line"; done | tr '\n' '|' | sed 's/|/\\n/g' | head -c 500)
-            MSG="[${{ github.repository }}] push to ${{ github.ref_name }} by ${{ github.actor }}\nCommits: $COMMITS_COUNT\n$COMMITS_MSG"
+            FIRST_MSG=$(echo "$COMMITS_JSON" | jq -r '.[0].message' | tr '\n' ' ' | cut -c1-100)
+            MSG="[${{ github.repository }}] push to ${{ github.ref_name }} by ${{ github.actor }} - $FIRST_MSG"
           else
-            MSG="[${{ github.repository }}] ${{ github.event_name }} by ${{ github.actor }} on ${{ github.base_ref }}"
+            MSG="[${{ github.repository }}] ${{ github.event_name }} by ${{ github.actor }}"
           fi
 
           curl -s -X POST 'https://open.larksuite.com/open-apis/im/v1/messages?receive_id_type=chat_id' \
