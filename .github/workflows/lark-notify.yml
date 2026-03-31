@@ -20,7 +20,7 @@ jobs:
 
       - name: Send Lark Notification
         run: |
-          curl -s -X POST 'https://open.larksuite.com/open-apis/im/v1/messages?receive_id_type=open_id' \
+          curl -s -X POST 'https://open.larksuite.com/open-apis/im/v1/messages?receive_id_type=chat_id' \
             -H 'Authorization: Bearer ${{ steps.get_token.outputs.token }}' \
             -H 'Content-Type: application/json' \
             -d '{
