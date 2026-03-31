@@ -19,14 +19,14 @@ jobs:
             COMMITS_JSON='${{ toJson(github.event.commits) }}'
             COMMITS_COUNT=$(echo "$COMMITS_JSON" | jq '. | length')
             FIRST_MSG=$(echo "$COMMITS_JSON" | jq -r '.[0].message' | tr '\n' ' ' | cut -c1-100)
-            MSG="[${{ github.repository }}] push to ${{ github.ref_name }} by ${{ github.actor }}\nCommits: $COMMITS_COUNT\n$FIRST_MSG"
+            TEXT="[${{ github.repository }}] push to ${{ github.ref_name }} by ${{ github.actor }} ($COMMITS_COUNT commits): $FIRST_MSG"
           else
             PR_NUM='${{ github.event.pull_request.number }}'
             PR_URL="https://github.com/${{ github.repository }}/pull/$PR_NUM"
-            MSG="[${{ github.repository }}] PR #$PR_NUM ${{ github.event.action }} by ${{ github.actor }}\nLink: $PR_URL"
+            TEXT="[${{ github.repository }}] PR #$PR_NUM ${{ github.event.action }} by ${{ github.actor }}: $PR_URL"
           fi
 
           curl -s -X POST 'https://open.larksuite.com/open-apis/im/v1/messages?receive_id_type=chat_id' \
             -H "Authorization: Bearer $TOKEN" \
             -H 'Content-Type: application/json' \
-            -d "{\"receive_id\":\"${{ secrets.LARK_CHAT_ID }}\",\"msg_type\":\"text\",\"content\":\"{\\\"text\\\":\\\"$MSG\\\"}\"}"
+            -d "{\"receive_id\":\"${{ secrets.LARK_CHAT_ID }}\",\"msg_type\":\"text\",\"content\":{\"text\":\"$TEXT\"}}"
