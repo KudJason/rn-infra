@@ -9,19 +9,12 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Get Lark Access Token
-        id: get_token
-        run: |
-          RESPONSE=$(curl -s -X POST 'https://open.larksuite.com/open-apis/auth/v3/tenant_access_token/internal' \
-            -H 'Content-Type: application/json' \
-            -d "{\"app_id\":\"${{ secrets.LARK_APP_ID }}\",\"app_secret\":\"${{ secrets.LARK_APP_SECRET }}\"}")
-          TOKEN=$(echo $RESPONSE | jq -r '.tenant_access_token')
-          echo "token=$TOKEN" >> $GITHUB_OUTPUT
-
       - name: Send Lark Notification
         run: |
-          MSG="[${{ github.repository }}] ${{ github.event_name }}\nBranch: ${{ github.ref_name }}\nCommit: ${{ github.sha }}\nAuthor: ${{ github.actor }}"
-          curl -s -X POST 'https://open.larksuite.com/open-apis/im/v1/messages?receive_id_type=chat_id' \
-            -H 'Authorization: Bearer ${{ steps.get_token.outputs.token }}' \
+          TOKEN=$(curl -s -X POST 'https://open.larksuite.com/open-apis/auth/v3/tenant_access_token/internal' \
             -H 'Content-Type: application/json' \
-            -d "{\"receive_id\":\"${{ secrets.LARK_CHAT_ID }}\",\"msg_type\":\"text\",\"content\":\"{\\\"text\\\":\\\"$MSG\\\"}\"}"
+            -d "{\"app_id\":\"${{ secrets.LARK_APP_ID }}\",\"app_secret\":\"${{ secrets.LARK_APP_SECRET }}\"}" | jq -r '.tenant_access_token')
+          curl -s -X POST 'https://open.larksuite.com/open-apis/im/v1/messages?receive_id_type=chat_id' \
+            -H "Authorization: Bearer $TOKEN" \
+            -H 'Content-Type: application/json' \
+            -d "{\"receive_id\":\"${{ secrets.LARK_CHAT_ID }}\",\"msg_type\":\"text\",\"content\":\"{\\\"text\\\":\\\"[${{ github.repository }}] ${{ github.event_name }} - ${{ github.ref_name }} by ${{ github.actor }}\\\"}\"}"
