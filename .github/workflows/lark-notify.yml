@@ -15,15 +15,24 @@ jobs:
             -H 'Content-Type: application/json' \
             -d "{\"app_id\":\"${{ secrets.LARK_APP_ID }}\",\"app_secret\":\"${{ secrets.LARK_APP_SECRET }}\"}" | jq -r '.tenant_access_token')
 
+          # Map repository to display name
+          case "${{ github.repository }}" in
+            "KudJason/RuralNeighbour") REPO_NAME="RnAppFront" ;;
+            "KudJason/RuralNeighbour-Backend") REPO_NAME="RnAppBackend" ;;
+            "KudJason/ruralneighbour-k8s") REPO_NAME="RnAppBackend" ;;
+            "KudJason/rn-infra") REPO_NAME="RnInfraSetup" ;;
+            *) REPO_NAME="${{ github.repository }}" ;;
+          esac
+
           if [ "${{ github.event_name }}" = "push" ]; then
             COMMITS_JSON='${{ toJson(github.event.commits) }}'
             COMMITS_COUNT=$(echo "$COMMITS_JSON" | jq '. | length')
             FIRST_MSG=$(echo "$COMMITS_JSON" | jq -r '.[0].message' | tr '\n' ' ' | cut -c1-100)
-            TEXT="[${{ github.repository }}] push to ${{ github.ref_name }} by ${{ github.actor }} ($COMMITS_COUNT commits): $FIRST_MSG"
+            TEXT="[$REPO_NAME] push to ${{ github.ref_name }} by ${{ github.actor }} ($COMMITS_COUNT commits): $FIRST_MSG"
           else
             PR_NUM='${{ github.event.pull_request.number }}'
             PR_URL="https://github.com/${{ github.repository }}/pull/$PR_NUM"
-            TEXT="[${{ github.repository }}] PR #$PR_NUM ${{ github.event.action }} by ${{ github.actor }}: $PR_URL"
+            TEXT="[$REPO_NAME] PR #$PR_NUM ${{ github.event.action }} by ${{ github.actor }}: $PR_URL"
           fi
 
           curl -s -X POST 'https://open.larksuite.com/open-apis/im/v1/messages?receive_id_type=chat_id' \
