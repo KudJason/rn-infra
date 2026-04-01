@@ -92,4 +92,26 @@ variable "enable_oslogin" {
   default     = true
 }
 
+variable "ingress_controller" {
+  description = "Ingress Controller to use: 'traefik' (K3s default) or 'nginx'"
+  type        = string
+  default     = "traefik"
+  validation {
+    condition     = contains(["traefik", "nginx"], var.ingress_controller)
+    error_message = "ingress_controller must be either 'traefik' or 'nginx'"
+  }
+}
+
+variable "ingress_nodeport_http" {
+  description = "NodePort for HTTP traffic (used when ingress_controller is 'nginx')"
+  type        = number
+  default     = 30080
+}
+
+variable "ingress_nodeport_https" {
+  description = "NodePort for HTTPS traffic (used when ingress_controller is 'nginx')"
+  type        = number
+  default     = 30443
+}
+
 
