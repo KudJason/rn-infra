@@ -1,7 +1,8 @@
+# Production Backup GCS Bucket
+
 resource "google_storage_bucket" "prod_backups" {
   name     = var.prod_backup_bucket_name
   location = "US"
-
   storage_class = "STANDARD"
 
   lifecycle_rule {
