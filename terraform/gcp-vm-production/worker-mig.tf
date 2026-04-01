@@ -90,7 +90,6 @@ resource "google_compute_region_instance_group_manager" "prod_workers" {
 
   base_instance_name = "rn-prod-worker"
   region              = var.region
-  distribution_configuration_target_shape = "BALANCED"
 
   version {
     instance_template = google_compute_instance_template.prod_worker.id
@@ -129,6 +128,8 @@ resource "google_compute_region_autoscaler" "prod_workers" {
     min_replicas       = 2
     max_replicas       = 5
     cooldown_period    = 60
-    cpu_utilization_target = 0.6
+    cpu_utilization {
+      target = 0.6
+    }
   }
 }
