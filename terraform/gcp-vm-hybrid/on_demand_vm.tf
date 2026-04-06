@@ -81,7 +81,14 @@ mount -a
 # 安装 k3s
 if [ ! -f /usr/local/bin/k3s ]; then
   echo "安装 k3s..."
-  curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='server --disable traefik --disable-cloud-controller' sh -
+  # 根据 ingress_controller 变量决定是否禁用 Traefik
+  if [ "${var.ingress_controller}" = "traefik" ]; then
+    echo "使用 Traefik Ingress Controller (K3s 默认)"
+    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='server --disable-cloud-controller' sh -
+  else
+    echo "禁用 Traefik，将安装 nginx Ingress Controller"
+    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='server --disable traefik --disable-cloud-controller' sh -
+  fi
   sleep 10
   K3S_TOKEN=$(cat /var/lib/rancher/k3s/server/node-token)
   TOKEN_FILE=/tmp/k3s_cluster_token.txt
@@ -136,8 +143,11 @@ SECRET_JSON=$(gcloud secrets versions access latest --secret="ghcr-ghcrio" --pro
 GHCR_USER=$(echo "$SECRET_JSON" | jq -r .GHCR_USERNAME)
 GHCR_TOKEN=$(echo "$SECRET_JSON" | jq -r .GHCR_TOKEN)
 
+# Create both dev and prod namespaces
 kubectl create namespace ruralneighbour-dev --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace ruralneighbour-prod --dry-run=client -o yaml | kubectl apply -f -
 
+# GHCR secret for dev namespace
 kubectl delete secret ghcr-secret -n ruralneighbour-dev --ignore-not-found
 kubectl create secret docker-registry ghcr-secret \
   --docker-server=ghcr.io \
@@ -145,6 +155,58 @@ kubectl create secret docker-registry ghcr-secret \
   --docker-password="$GHCR_TOKEN" \
   --docker-email="dev-null@local" \
   -n ruralneighbour-dev
+
+# GHCR secret for prod namespace
+kubectl delete secret ghcr-secret -n ruralneighbour-prod --ignore-not-found
+kubectl create secret docker-registry ghcr-secret \
+  --docker-server=ghcr.io \
+  --docker-username="$GHCR_USER" \
+  --docker-password="$GHCR_TOKEN" \
+  --docker-email="dev-null@local" \
+  -n ruralneighbour-prod
+
+# === 1.5 安装 Ingress Controller (如果使用 nginx) ===
+if [ "${var.ingress_controller}" = "nginx" ]; then
+  echo "安装 nginx Ingress Controller..."
+  
+  # 安装 Helm (如果不存在)
+  if ! command -v helm >/dev/null 2>&1; then
+    echo "安装 Helm..."
+    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  fi
+  
+  # 等待 k3s 完全就绪
+  echo "等待 k3s 就绪..."
+  for i in $(seq 1 30); do
+    if kubectl get nodes >/dev/null 2>&1; then
+      echo "k3s 就绪"
+      break
+    fi
+    echo "等待 k3s... ($i/30)"
+    sleep 2
+  done
+  
+  # 安装 nginx Ingress Controller
+  helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx 2>/dev/null || true
+  helm repo update
+  
+  helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+    --namespace ingress-nginx \
+    --create-namespace \
+    --set controller.service.type=NodePort \
+    --set controller.service.nodePorts.http=${var.ingress_nodeport_http} \
+    --set controller.service.nodePorts.https=${var.ingress_nodeport_https} \
+    --set controller.admissionWebhooks.enabled=false \
+    --wait --timeout=5m || echo "⚠️  Ingress Controller 安装可能需要更长时间，继续部署..."
+  
+  echo "✅ nginx Ingress Controller 安装完成 (NodePort: ${var.ingress_nodeport_http})"
+else
+  echo "使用 Traefik Ingress Controller (K3s 默认)"
+  # Traefik 默认在端口 80 和 443 上运行（通过 LoadBalancer Service）
+  # 检查 Traefik Service
+  echo "检查 Traefik Service..."
+  kubectl get svc -n kube-system traefik -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || echo "Traefik Service 可能尚未就绪"
+fi
 
 # === 2. 拉取代码并部署 ===
 echo "拉取代码..."
@@ -189,9 +251,32 @@ if [ -z "$(ls -A /data/postgres 2>/dev/null)" ]; then
   fi
 fi
 
+# === 4. 输出 Ingress Controller 信息 ===
+echo ""
+echo "=== Ingress Controller 信息 ==="
+if [ "${var.ingress_controller}" = "nginx" ]; then
+  INGRESS_PORT=${var.ingress_nodeport_http}
+  echo "Ingress Controller: nginx"
+  echo "NodePort (HTTP): $INGRESS_PORT"
+  echo "NodePort (HTTPS): ${var.ingress_nodeport_https}"
+  echo ""
+  echo "Cloudflare Tunnel 应配置为: http://127.0.0.1:$INGRESS_PORT"
+  kubectl get svc -n ingress-nginx ingress-nginx-controller || echo "⚠️  Ingress Controller Service 可能尚未就绪"
+else
+  echo "Ingress Controller: Traefik (K3s 默认)"
+  echo "Traefik 默认在端口 80 上运行"
+  echo ""
+  echo "Cloudflare Tunnel 应配置为: http://127.0.0.1:80"
+  kubectl get svc -n kube-system traefik || echo "⚠️  Traefik Service 可能尚未就绪"
+fi
+
 echo "=== RuralNeighbour VM Ready ===" | tee /etc/motd
 echo "数据目录: /data" | tee -a /etc/motd
 echo "查看部署: sudo k3s kubectl get pods -n ruralneighbour-dev" | tee -a /etc/motd
+echo "Ingress Controller: ${var.ingress_controller}" | tee -a /etc/motd
+if [ "${var.ingress_controller}" = "nginx" ]; then
+  echo "Ingress NodePort: ${var.ingress_nodeport_http}" | tee -a /etc/motd
+fi
 echo "Cloudflare Tunnel 客户端版本: $(cloudflared --version 2>/dev/null | head -n 1 || echo 'not-installed')" | tee -a /etc/motd
 
 # 简单备份脚本
