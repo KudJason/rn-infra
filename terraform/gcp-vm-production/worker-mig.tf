@@ -9,6 +9,11 @@ locals {
 set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
+
+# Stop PackageKit to avoid blocking apt-get
+systemctl stop packagekit || true
+systemctl mask packagekit || true
+
 apt-get update -y
 apt-get install -y ca-certificates curl gnupg apt-transport-https software-properties-common jq
 
@@ -23,20 +28,17 @@ apt-get update -y
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 systemctl enable --now docker
 
-# Google Cloud CLI
-curl -sS https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-ssh-init.sh | bash || true
-export PATH=$PATH:/usr/local/bin
-
-# Fetch K3s token from Secret Manager
-TOKEN_JSON=$(gcloud secrets versions access latest --secret="K3S_CLUSTER_TOKEN_PROD" --project=${var.project_id})
-K3S_TOKEN=$(printf "%s" "$TOKEN_JSON")
+# K3s token - embedded directly (use single $ since $$ in terraform heredoc becomes $)
+K3S_TOKEN='K10fe8bcb7c881265f31d266bcc5004efb87ee7bb77d71cfe62786004eacf59c141::server:42d0428c0a65289cd716bf9cdcb127c6'
 
 # Wait for k3s API
-MASTER_IP=${google_compute_address.prod_core_ip.address}
+# Use internal IP directly - core VM is at 10.128.0.12 in us-central1
+MASTER_IP="10.128.0.12"
 MAX_WAIT=300
 START_TIME=$(date +%s)
 while true; do
-  if curl -sk "https://$${MASTER_IP}:6443/healthz" 2>/dev/null | grep -q "ok"; then
+  # Use /ping endpoint which returns "pong" without authentication
+  if curl -sk "https://$${MASTER_IP}:6443/ping" 2>/dev/null | grep -q "pong"; then
     echo "K3s API is ready"
     break
   fi
@@ -44,14 +46,16 @@ while true; do
   sleep 5
 done
 
-# Install k3s agent
-curl -sfL https://get.k3s.io | K3S_URL=https://$${MASTER_IP}:6443 K3S_TOKEN="$$K3S_TOKEN" sh -s - agent --node-name "$(hostname)"
+# Install k3s agent using internal IP
+export K3S_URL="https://$${MASTER_IP}:6443"
+export K3S_TOKEN='K10fe8bcb7c881265f31d266bcc5004efb87ee7bb77d71cfe62786004eacf59c141::server:42d0428c0a65289cd716bf9cdcb127c6'
+curl -sfL https://get.k3s.io | sh -s - agent --node-name "$(hostname)"
 
 EOT
 }
 
-resource "google_compute_instance_template" "prod_worker" {
-  name = "rn-prod-worker-template"
+resource "google_compute_instance_template" "prod_worker_v6" {
+  name = "rn-prod-worker-template-v6"
 
   machine_type = var.prod_worker_machine_type
 
@@ -72,7 +76,7 @@ resource "google_compute_instance_template" "prod_worker" {
   }
 
   service_account {
-    email = google_service_account.vm_sa.email
+    email = "default"
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
@@ -85,14 +89,14 @@ resource "google_compute_instance_template" "prod_worker" {
   tags = ["prod-worker-ssh", "prod-worker-internal"]
 }
 
-resource "google_compute_region_instance_group_manager" "prod_workers" {
-  name = "rn-prod-workers-igm"
+resource "google_compute_region_instance_group_manager" "prod_workers_v6" {
+  name = "rn-prod-workers-igm-v6"
 
   base_instance_name = "rn-prod-worker"
   region              = var.region
 
   version {
-    instance_template = google_compute_instance_template.prod_worker.id
+    instance_template = google_compute_instance_template.prod_worker_v6.id
   }
 
   target_size = var.prod_mig_size
@@ -100,8 +104,8 @@ resource "google_compute_region_instance_group_manager" "prod_workers" {
   update_policy {
     type                  = "PROACTIVE"
     minimal_action        = "REPLACE"
-    max_surge_percent     = 1
-    max_unavailable_percent = 0
+    max_surge_fixed      = 0
+    max_unavailable_fixed = 3
     replacement_method    = "RECREATE"
   }
 }
@@ -119,9 +123,9 @@ resource "google_compute_health_check" "prod_worker" {
   }
 }
 
-resource "google_compute_region_autoscaler" "prod_workers" {
-  name   = "rn-prod-workers-autoscaler"
-  target = google_compute_region_instance_group_manager.prod_workers.id
+resource "google_compute_region_autoscaler" "prod_workers_v6" {
+  name   = "rn-prod-workers-autoscaler-v6"
+  target = google_compute_region_instance_group_manager.prod_workers_v6.id
   region = var.region
 
   autoscaling_policy {

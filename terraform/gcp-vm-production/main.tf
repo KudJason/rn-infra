@@ -203,7 +203,7 @@ resource "google_compute_instance" "prod_core" {
   }
 
   service_account {
-    email = google_service_account.vm_sa.email
+    email = "default"
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 

@@ -17,7 +17,7 @@ output "prod_core_private_ip" {
 
 output "prod_worker_mig_name" {
   description = "Production Worker MIG name"
-  value       = google_compute_region_instance_group_manager.prod_workers.name
+  value       = google_compute_region_instance_group_manager.prod_workers_v6.name
 }
 
 output "prod_worker_count" {
@@ -31,6 +31,6 @@ output "prod_backup_bucket" {
 }
 
 output "prod_vm_service_account" {
-  description = "Production VM Service Account email"
-  value       = google_service_account.vm_sa.email
+  description = "Production VM uses default Compute Service Account"
+  value       = "default"
 }
