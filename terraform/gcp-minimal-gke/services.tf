@@ -8,6 +8,7 @@ resource "google_project_service" "enabled" {
     "iam.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "servicenetworking.googleapis.com",
+    "storage.googleapis.com",
   ])
 
   project = var.project_id

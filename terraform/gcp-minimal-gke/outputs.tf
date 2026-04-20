@@ -26,6 +26,16 @@ output "gke_endpoint" {
   value = google_container_cluster.primary.endpoint
 }
 
+output "storage_bucket_name" {
+  description = "GCS bucket name for file storage"
+  value       = google_storage_bucket.files.name
+}
+
+output "storage_bucket_url" {
+  description = "GCS bucket base URL"
+  value       = "https://storage.googleapis.com/${google_storage_bucket.files.name}"
+}
+
 
 
 

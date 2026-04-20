@@ -15,6 +15,31 @@ resource "google_storage_bucket" "backup" {
   }
 }
 
+# GCS bucket for file storage (profile photos, etc.)
+resource "google_storage_bucket" "files" {
+  name                        = var.files_bucket_name
+  location                    = var.region
+  uniform_bucket_level_access = true
+  force_destroy               = false
+
+  lifecycle_rule {
+    action { type = "Delete" }
+    condition { age = 90 }
+  }
+
+  lifecycle_rule {
+    action { type = "AbortIncompleteMultipartUpload" }
+    condition { age = 1 }
+  }
+}
+
+# Grant public read access for serving static content (profile photos, etc.)
+resource "google_storage_bucket_iam_member" "files_public_reader" {
+  bucket = google_storage_bucket.files.name
+  role   = "roles/storage.objectViewer"
+  member = "allUsers"
+}
+
 # Grant Secret Manager access to VM service account
 resource "google_secret_manager_secret_iam_member" "vm_sa_db_password" {
   secret_id = google_secret_manager_secret.db_password.secret_id

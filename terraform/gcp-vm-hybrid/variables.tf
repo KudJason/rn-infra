@@ -80,6 +80,12 @@ variable "backup_bucket_name" {
   default     = "rn-backup-rural-neighbor-1"
 }
 
+variable "files_bucket_name" {
+  description = "GCS bucket for file storage (dev and prod)"
+  type        = string
+  default     = "ruralneighbor-files"
+}
+
 variable "manage_project_iam" {
   description = "Whether to manage project-level IAM/KMS/CMEK (requires project-owner-like privileges). Set false for personal/dev projects."
   type        = bool
