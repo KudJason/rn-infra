@@ -13,7 +13,7 @@ variable "region" {
 variable "zone" {
   description = "GCP zone"
   type        = string
-  default     = "us-central1-a"
+  default     = "us-central1-b"
 }
 
 variable "on_demand_name" {
@@ -112,6 +112,13 @@ variable "ingress_nodeport_https" {
   description = "NodePort for HTTPS traffic (used when ingress_controller is 'nginx')"
   type        = number
   default     = 30443
+}
+
+variable "ghcr_token" {
+  description = "GitHub PAT for GHCR authentication (ghcr.io)"
+  type        = string
+  sensitive   = true
+  default     = ""
 }
 
 

@@ -43,25 +43,25 @@ export PATH=$PATH:/usr/local/bin
 if ! command -v cloudflared >/dev/null 2>&1; then
   echo "安装 cloudflared..."
   ARCH="$(dpkg --print-architecture)"
-  case "$${ARCH}" in
+  case "$$${ARCH}" in
     amd64) CF_ARCH="amd64" ;;
     arm64) CF_ARCH="arm64" ;;
     *)
-      echo "不支持的 cloudflared 架构: $${ARCH}，跳过安装"
+      echo "不支持的 cloudflared 架构: $$${ARCH}，跳过安装"
       CF_ARCH=""
       ;;
   esac
 
-  if [ -n "$${CF_ARCH}" ]; then
-    CF_DEB="/tmp/cloudflared-$${CF_ARCH}.deb"
-    if curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-$${CF_ARCH}.deb" -o "$${CF_DEB}"; then
-      if dpkg -i "$${CF_DEB}"; then
+  if [ -n "$$${CF_ARCH}" ]; then
+    CF_DEB="/tmp/cloudflared-$$${CF_ARCH}.deb"
+    if curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-$$${CF_ARCH}.deb" -o "$$${CF_DEB}"; then
+      if dpkg -i "$$${CF_DEB}"; then
         echo "cloudflared 安装完成"
       else
         echo "dpkg 安装 cloudflared 失败，尝试修复依赖后重试"
-        apt-get install -f -y && dpkg -i "$${CF_DEB}" || echo "cloudflared 安装失败，后续可手动安装"
+        apt-get install -f -y && dpkg -i "$$${CF_DEB}" || echo "cloudflared 安装失败，后续可手动安装"
       fi
-      rm -f "$${CF_DEB}"
+      rm -f "$$${CF_DEB}"
     else
       echo "cloudflared 下载失败，后续可手动安装"
     fi
@@ -139,19 +139,55 @@ done
 
 # === 1. 配置 GHCR 凭据 ===
 echo "配置 GHCR..."
-SECRET_JSON=$(gcloud secrets versions access latest --secret="ghcr-ghcrio" --project="${var.project_id}")
-GHCR_USER=$(echo "$SECRET_JSON" | jq -r .GHCR_USERNAME)
-GHCR_TOKEN=$(echo "$SECRET_JSON" | jq -r .GHCR_TOKEN)
+# 从 metadata 获取 token（terraform 变量注入）
+GHCR_TOKEN="$$${GHCR_TOKEN:-}"
+if [ -z "$GHCR_TOKEN" ]; then
+  echo "ERROR: GHCR_TOKEN is empty. Please set var.ghcr_token in terraform."
+  exit 1
+fi
+
+# 安装 gh CLI（用于 docker login ghcr.io）
+if ! command -v gh >/dev/null 2>&1; then
+  echo "安装 gh CLI..."
+  ARCH="$(dpkg --print-architecture)"
+  case "$$${ARCH}" in
+    amd64) GH_ARCH="linux_amd64" ;;
+    arm64) GH_ARCH="linux_arm64" ;;
+    *)
+      echo "不支持的 gh 架构: $$${ARCH}"
+      GH_ARCH=""
+      ;;
+  esac
+  if [ -n "$GH_ARCH" ]; then
+    GH_TAR="/tmp/gh.tar.gz"
+    curl -fsSL "https://github.com/cli/cli/releases/download/v2.63.0/gh_2.63.0_$$${GH_ARCH}.tar.gz" -o "$GH_TAR"
+    tar -xzf "$GH_TAR" -C /tmp
+    mv /tmp/gh_2.63.0_$$${GH_ARCH}/bin/gh /usr/local/bin/gh
+    rm -rf "$GH_TAR" /tmp/gh_2.63.0_$$${GH_ARCH}
+    echo "gh CLI 安装完成"
+  fi
+fi
+
+# gh auth login（使用 token）
+if gh auth status 2>/dev/null | grep -q "github.com"; then
+  echo "gh 已登录，跳过"
+else
+  echo "$GHCR_TOKEN" | gh auth login --hostname github.com --with-token
+fi
+
+# docker login ghcr.io（使用 gh token，gh CLI 已登录）
+GHCR_USER="KudJason"  # ghcr.io 用户名固定
+echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 
 # Create both dev and prod namespaces
 kubectl create namespace ruralneighbour-dev --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace ruralneighbour-prod --dry-run=client -o yaml | kubectl apply -f -
 
-# GHCR secret for dev namespace
+# GHCR secret for dev namespace（用于 k8s 拉取 ghcr.io 镜像）
 kubectl delete secret ghcr-secret -n ruralneighbour-dev --ignore-not-found
 kubectl create secret docker-registry ghcr-secret \
   --docker-server=ghcr.io \
-  --docker-username="$GHCR_USER" \
+  --docker-username="$${GHCR_USER:-KudJason}" \
   --docker-password="$GHCR_TOKEN" \
   --docker-email="dev-null@local" \
   -n ruralneighbour-dev
@@ -160,7 +196,7 @@ kubectl create secret docker-registry ghcr-secret \
 kubectl delete secret ghcr-secret -n ruralneighbour-prod --ignore-not-found
 kubectl create secret docker-registry ghcr-secret \
   --docker-server=ghcr.io \
-  --docker-username="$GHCR_USER" \
+  --docker-username="$${GHCR_USER:-KudJason}" \
   --docker-password="$GHCR_TOKEN" \
   --docker-email="dev-null@local" \
   -n ruralneighbour-prod
@@ -338,6 +374,7 @@ resource "google_compute_instance" "core" {
     block-project-ssh-keys = "TRUE"
     "user-data"            = "rn"
     BACKUP_BUCKET          = var.backup_bucket_name
+    GHCR_TOKEN             = var.ghcr_token
   }
 
   service_account {

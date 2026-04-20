@@ -58,31 +58,11 @@ resource "google_secret_manager_secret" "k3s_token" {
   }
 }
 
-resource "google_secret_manager_secret" "ghcr_credentials" {
-  secret_id = "ghcr-ghcrio"
-
-  replication {
-    user_managed {
-      replicas {
-        location = var.region
-
-        dynamic "customer_managed_encryption" {
-          for_each = var.manage_project_iam ? [1] : []
-          content {
-            kms_key_name = google_kms_crypto_key.app.id
-          }
-        }
-      }
-    }
-  }
-}
-
 # IAM bindings for Secret Manager access are managed in iam.tf
 
 # 注意：密钥值不写入代码库。请使用以下命令添加版本：
 #   echo -n "<your_db_password>" | gcloud secrets versions add db-password --data-file=- --project ${var.project_id}
 #   echo -n "<your_jwt_secret>"   | gcloud secrets versions add jwt-secret   --data-file=- --project ${var.project_id}
-#   echo -n '{"GHCR_USERNAME":"<username>","GHCR_TOKEN":"<token>"}' | gcloud secrets versions add ghcr-ghcrio --data-file=- --project ${var.project_id}
 
 
 

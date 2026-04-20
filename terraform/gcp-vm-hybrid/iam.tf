@@ -34,12 +34,6 @@ resource "google_secret_manager_secret_iam_member" "vm_sa_k3s_token" {
   member    = "serviceAccount:${google_service_account.vm_sa.email}"
 }
 
-resource "google_secret_manager_secret_iam_member" "vm_sa_ghcr_credentials" {
-  secret_id = google_secret_manager_secret.ghcr_credentials.secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.vm_sa.email}"
-}
-
 # IAM bindings for other services (logging, monitoring, storage) removed - will be managed manually or via gcloud if needed
 # To grant permissions manually, use:
 #   gcloud projects add-iam-policy-binding PROJECT_ID --member="serviceAccount:rn-vm-sa@PROJECT_ID.iam.gserviceaccount.com" --role="roles/logging.logWriter"
