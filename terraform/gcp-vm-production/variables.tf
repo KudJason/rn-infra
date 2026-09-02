@@ -55,9 +55,9 @@ variable "prod_worker_disk_size_gb" {
 }
 
 variable "prod_mig_size" {
-  description = "Target size of production worker MIG"
+  description = "Target (initial) size of production worker MIG; autoscaler ranges 1..3"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "prod_target_node_count" {
@@ -100,6 +100,13 @@ variable "prod_backup_bucket_name" {
   description = "GCS bucket for production nightly backups"
   type        = string
   default     = "rn-prod-backups-rural-neighbor-1"
+}
+
+# Files storage
+variable "prod_files_bucket_name" {
+  description = "GCS bucket for production file storage (profile photos, etc.)"
+  type        = string
+  default     = "ruralneighbor-prod-files"
 }
 
 # Ingress

@@ -15,40 +15,26 @@ systemctl stop packagekit || true
 systemctl mask packagekit || true
 
 apt-get update -y
-apt-get install -y ca-certificates curl gnupg apt-transport-https software-properties-common jq
+apt-get install -y ca-certificates curl gnupg apt-transport-https jq
 
-# Docker
-install -d -m 0755 /etc/apt/keyrings
-if [ ! -f /etc/apt/keyrings/docker.gpg ]; then
-  curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor --yes --batch -o /etc/apt/keyrings/docker.gpg
-fi
-chmod a+r /etc/apt/keyrings/docker.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-apt-get update -y
-apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-systemctl enable --now docker
+# Core (master) VM internal DNS name and the shared k3s token
+MASTER_HOST="${var.prod_on_demand_name}.${var.zone}.c.${var.project_id}.internal"
 
-# K3s token - embedded directly (use single $ since $$ in terraform heredoc becomes $)
-K3S_TOKEN='K10fe8bcb7c881265f31d266bcc5004efb87ee7bb77d71cfe62786004eacf59c141::server:42d0428c0a65289cd716bf9cdcb127c6'
-
-# Wait for k3s API
-# Use internal IP directly - core VM is at 10.128.0.12 in us-central1
-MASTER_IP="10.128.0.12"
-MAX_WAIT=300
+# Wait for the core k3s API to become reachable
+MAX_WAIT=600
 START_TIME=$(date +%s)
 while true; do
-  # Use /ping endpoint which returns "pong" without authentication
-  if curl -sk "https://$${MASTER_IP}:6443/ping" 2>/dev/null | grep -q "pong"; then
+  if curl -sk "https://$${MASTER_HOST}:6443/ping" 2>/dev/null | grep -q "pong"; then
     echo "K3s API is ready"
     break
   fi
   [ $(( $(date +%s) - START_TIME )) -gt $MAX_WAIT ] && { echo "Timeout waiting for k3s"; exit 1; }
-  sleep 5
+  sleep 10
 done
 
-# Install k3s agent using internal IP
-export K3S_URL="https://$${MASTER_IP}:6443"
-export K3S_TOKEN='K10fe8bcb7c881265f31d266bcc5004efb87ee7bb77d71cfe62786004eacf59c141::server:42d0428c0a65289cd716bf9cdcb127c6'
+# Join as a k3s agent
+export K3S_URL="https://$${MASTER_HOST}:6443"
+export K3S_TOKEN='${random_password.k3s_token.result}'
 curl -sfL https://get.k3s.io | sh -s - agent --node-name "$(hostname)"
 
 EOT
@@ -129,8 +115,8 @@ resource "google_compute_region_autoscaler" "prod_workers_v6" {
   region = var.region
 
   autoscaling_policy {
-    min_replicas       = 2
-    max_replicas       = 5
+    min_replicas       = 1
+    max_replicas       = 3
     cooldown_period    = 60
     cpu_utilization {
       target = 0.6
