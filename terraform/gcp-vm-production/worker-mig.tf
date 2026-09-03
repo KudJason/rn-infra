@@ -115,8 +115,13 @@ resource "google_compute_region_autoscaler" "prod_workers_v6" {
   region = var.region
 
   autoscaling_policy {
-    min_replicas       = 1
-    max_replicas       = 3
+    # DISABLED 2026-09-03: GCP CPU-based autoscaling is destructive for k3s —
+    # scale-in deletes a worker VM and strands its pods/nodes (churn caused
+    # endpoint gaps + stale NotReady nodes). Keep a FIXED worker pool until a
+    # real k3s cluster-autoscaler (pending-pod aware) is deployed.
+    mode = "OFF"
+    min_replicas       = var.prod_mig_size
+    max_replicas       = var.prod_mig_size
     cooldown_period    = 60
     cpu_utilization {
       target = 0.6

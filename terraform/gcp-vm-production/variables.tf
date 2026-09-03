@@ -55,9 +55,9 @@ variable "prod_worker_disk_size_gb" {
 }
 
 variable "prod_mig_size" {
-  description = "Target (initial) size of production worker MIG; autoscaler ranges 1..3"
+  description = "Fixed worker MIG size (autoscaling OFF — see worker-mig.tf note)"
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "prod_target_node_count" {
